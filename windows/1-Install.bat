@@ -1,6 +1,6 @@
 @echo off
-title QUICK TEST - verify pipeline end to end
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\4_train.ps1" %* -SmokeTest
+title STEP 1/5 - Install (one-time setup)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\scripts\1_setup.ps1" %*
 set RC=%ERRORLEVEL%
 echo.
 (if "%RC%"=="0" (echo RESULT: SUCCESS) else (echo RESULT: FAILED - read the messages above))

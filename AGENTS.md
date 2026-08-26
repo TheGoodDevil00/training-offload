@@ -10,8 +10,7 @@ You are an AI coding agent running on a host machine. Your task is to successful
 
 ## Execution Sequence
 
-Execute the PowerShell scripts in `scripts/` sequentially. You can use the `.bat` or `.sh` launchers in the root or call the `.ps1` / `.sh` scripts directly (with `-ExecutionPolicy Bypass`).
-
+Execute the scripts sequentially. You can use the launchers in `windows/*.bat` (on Windows) or `linux/*.sh` (on Linux), or call the `scripts/` files directly.
 ### `scripts/1_setup.ps1`
 **Your primary value is here.** This script creates the `.venv`, installs CUDA-enabled PyTorch + YOLO tools, and asserts GPU readiness.
 - Run it. If it succeeds (`[OK] CUDA_OK...`), proceed.
@@ -31,7 +30,7 @@ Execute the PowerShell scripts in `scripts/` sequentially. You can use the `.bat
 
 ### `scripts/4_train.ps1`
 - **WARNING: This takes several hours.** Do NOT execute this synchronously through your shell tool if you have a timeout limit, or you will hit a tool timeout and kill the training process mid-run.
-- **RECOMMENDED:** Stop and instruct the human user to manually double-click `4-Train.bat`, then suspend yourself until they return. If you must run it yourself, launch it completely detached.
+- **RECOMMENDED:** Stop and instruct the human user to manually double-click `windows/4-Train.bat` (or run `linux/4-Train.sh`), then suspend yourself until they return. If you must run it yourself, launch it completely detached.
 - Ensure the host machine is set to never sleep while plugged in (you may check/adjust powercfg if permitted, or instruct the user).
 - If it crashes mid-way (e.g. thermal shutdown), re-running it restarts training from scratch. Do not edit the script to hack in resume support.
 
