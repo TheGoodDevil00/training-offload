@@ -30,8 +30,8 @@ Execute the PowerShell scripts in `scripts/` sequentially. You can use the `.bat
 - Run this first to prove the GPU/CUDA/VRAM stack works end-to-end on a tiny subset of data.
 
 ### `scripts/4_train.ps1`
-- **This will take several hours.** 
-- Launch it and verify epochs are actively progressing. 
+- **WARNING: This takes several hours.** Do NOT execute this synchronously through your shell tool if you have a timeout limit, or you will hit a tool timeout and kill the training process mid-run.
+- **RECOMMENDED:** Stop and instruct the human user to manually double-click `4-Train.bat`, then suspend yourself until they return. If you must run it yourself, launch it completely detached.
 - Ensure the host machine is set to never sleep while plugged in (you may check/adjust powercfg if permitted, or instruct the user).
 - If it crashes mid-way (e.g. thermal shutdown), re-running it restarts training from scratch. Do not edit the script to hack in resume support.
 
