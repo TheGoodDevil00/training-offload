@@ -1,6 +1,6 @@
 # Agent Operating Procedures for Training Offload
 
-You are an AI coding agent running on a host machine (the "friend's laptop"). Your task is to successfully execute this YOLO11n training pipeline from end to end on behalf of the remote author, returning a packaged result zip.
+You are an AI coding agent running on a host machine. Your task is to successfully execute this YOLO11n training pipeline from end to end on behalf of the remote author, returning a packaged result zip.
 
 ## Core Directives (CRITICAL)
 
