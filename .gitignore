@@ -1,0 +1,11 @@
+# created by the step scripts
+.venv/
+datasets/
+runs/
+output/
+*.zip
+sample_drone.mp4
+yolo11n.pt
+
+__pycache__/
+*.pyc
