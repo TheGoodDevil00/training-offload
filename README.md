@@ -37,27 +37,27 @@ they can lock files while training runs.
 Double-click each file, watch the black window until it says what to do next,
 then close it (or it pauses and waits for a keypress).
 
-### `1-Install.bat` — one-time setup (~10-30 min)
+### `1-Install.bat` (or `.sh`) (or `1-Install.sh` on Linux) — one-time setup (~10-30 min)
 Checks your GPU, installs Python + all AI libraries if missing, verifies
 everything works. You'll see `[OK] CUDA_OK <your GPU name>` when done.
 
-### `2-Download-Dataset.bat` (~5-40 min depending on internet)
+### `2-Download-Dataset.bat` (or `.sh`) (~5-40 min depending on internet)
 Downloads the VisDrone2019-DET drone dataset (~2.5 GB) and unpacks it.
 
-### `3-Prepare-Dataset.bat` (~2-5 min)
+### `3-Prepare-Dataset.bat` (or `.sh`) (~2-5 min)
 Converts the raw annotations into training format (single class: human).
 
-### Optional: `QUICK-TEST.bat` (~5-10 min)
+### Optional: `QUICK-TEST.bat` (or `.sh`) (~5-10 min)
 A tiny 2-minute-scale training run just to prove everything works before the
 real thing. Recommended once.
 
-### `4-Train.bat` — THE LONG ONE (several hours; overnight recommended)
+### `4-Train.bat` (or `.sh`) — THE LONG ONE (several hours; overnight recommended)
 Trains in two stages (frozen backbone first, then full fine-tune):
 100 + 40 epochs at 512 px. Just leave the window open. If the computer
 crashes or the window closes, double-click it again - it restarts training
 from scratch.
 
-### `5-Package-Results.bat` (~15-30 min)
+### `5-Package-Results.bat` (or `.sh`) (~15-30 min)
 Exports the trained model (NCNN fp16/int8 + ONNX int8 for Raspberry Pi),
 measures accuracy (mAP) and speed, renders prediction previews, and zips
 everything up.
@@ -75,7 +75,7 @@ The file `training-results-<date>.zip` in this folder. That's it!
 | Blue "Windows protected your PC" popup | Click **More info** → **Run anyway** |
 | "No NVIDIA GPU driver detected" | Install/update the driver: https://www.nvidia.com/drivers then reboot |
 | "driver ... is too old ... needs 580+" | Same as above - update the NVIDIA driver |
-| "PyTorch ... CANNOT use your GPU" | Update driver from nvidia.com, reboot, run `1-Install.bat` again |
+| "PyTorch ... CANNOT use your GPU" | Update driver from nvidia.com, reboot, run `1-Install.bat` (or `.sh`) (or `1-Install.sh` on Linux) again |
 | Antivirus makes step 1 very slow | Temporarily pause it while installing (only step 1) |
 | Ran out of disk space | Free up space on C:, delete the `.venv` folder, re-run step 1 |
 | Any other red error text | Screenshot the whole window and send it |
@@ -85,8 +85,8 @@ The file `training-results-<date>.zip` in this folder. That's it!
 ## What's in here (for reference)
 
 ```
-1-Install.bat ... 5-Package-Results.bat   <- the five steps (double-click these)
-QUICK-TEST.bat                            <- optional mini-training sanity check
+1-Install.bat / .sh ... 5-Package-Results.bat / .sh   <- the five steps (double-click these)
+QUICK-TEST.bat / .sh                                  <- optional mini-training sanity check
 training\                                 <- the actual training scripts
 scripts\                                  <- automation behind the .bat files
 datasets\ runs\ output\                   <- created while running (can be deleted after)

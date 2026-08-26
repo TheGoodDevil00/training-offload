@@ -10,7 +10,7 @@ You are an AI coding agent running on a host machine. Your task is to successful
 
 ## Execution Sequence
 
-Execute the PowerShell scripts in `scripts/` sequentially. You can use the `.bat` launchers in the root or call the `.ps1` scripts directly (with `-ExecutionPolicy Bypass`).
+Execute the PowerShell scripts in `scripts/` sequentially. You can use the `.bat` or `.sh` launchers in the root or call the `.ps1` / `.sh` scripts directly (with `-ExecutionPolicy Bypass`).
 
 ### `scripts/1_setup.ps1`
 **Your primary value is here.** This script creates the `.venv`, installs CUDA-enabled PyTorch + YOLO tools, and asserts GPU readiness.
