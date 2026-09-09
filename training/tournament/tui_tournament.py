@@ -467,10 +467,99 @@ def screen_build_hard_dataset():
 
     safe_wait_enter(f"\n{DIM}Press [Enter] to return to menu...{RESET}")
 
+def screen_download_dataset():
+    """Step 2: Download VisDrone raw dataset (~2.5 GB)."""
+    data_dir = PROJECT_ROOT / "datasets" / "usable"
+    train_dir = data_dir / "VisDrone2019-DET-train"
+    val_dir = data_dir / "VisDrone2019-DET-val"
+    if (train_dir / "images").exists() and (val_dir / "images").exists():
+        print(f"\n{BOLD}{GREEN}✔ VisDrone dataset already downloaded and extracted at {data_dir.relative_to(PROJECT_ROOT)}.{RESET}")
+        safe_wait_enter("Press [Enter] to return...")
+        return
+
+    print("\n" + "=" * 74)
+    print(f"{BOLD}{CYAN}  📥 STEP 2: DOWNLOAD VISDRONE DATASET (~2.5 GB){RESET}")
+    print("=" * 74)
+    if os.name == "nt":
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(PROJECT_ROOT / "scripts" / "2_download_data.ps1")]
+    else:
+        cmd = ["bash", str(PROJECT_ROOT / "scripts" / "2_download_data.sh")]
+    try:
+        subprocess.run(cmd, cwd=PROJECT_ROOT, check=True)
+    except Exception as e:
+        print(f"\n{BOLD}{RED}✖ Download failed: {e}{RESET}")
+    safe_wait_enter(f"\n{DIM}Press [Enter] to return to menu...{RESET}")
+
+
+def screen_prepare_dataset():
+    """Step 3: Convert VisDrone annotations to single-class YOLO dataset."""
+    data_dir = PROJECT_ROOT / "datasets" / "usable"
+    train_dir = data_dir / "VisDrone2019-DET-train"
+    val_dir = data_dir / "VisDrone2019-DET-val"
+    out_dir = data_dir / "yolo-human"
+    yaml_file = out_dir / "data.yaml"
+
+    if yaml_file.exists():
+        print(f"\n{BOLD}{GREEN}✔ YOLO dataset is already prepared at {out_dir.relative_to(PROJECT_ROOT)}.{RESET}")
+        ans = input("  Re-run conversion? (y/N): ").strip().lower()
+        if ans != "y":
+            return
+
+    if not (train_dir / "annotations").exists() or not (val_dir / "annotations").exists():
+        print(f"\n{BOLD}{RED}✖ Raw VisDrone folders not found.{RESET}")
+        print("  Please run option '📥 Download VisDrone Dataset' first.")
+        safe_wait_enter("Press [Enter] to return...")
+        return
+
+    print("\n" + "=" * 74)
+    print(f"{BOLD}{CYAN}  📁 STEP 3: PREPARE YOLO DATASET (VisDrone -> single-class human){RESET}")
+    print("=" * 74)
+    py_exe = get_project_python_exe(PROJECT_ROOT)
+    cmd = [
+        py_exe,
+        str(PROJECT_ROOT / "training" / "prepare_dataset.py"),
+        "--train", str(train_dir),
+        "--val", str(val_dir),
+        "--out", str(out_dir),
+        "--copy",
+    ]
+    try:
+        subprocess.run(cmd, cwd=PROJECT_ROOT, check=True)
+        print(f"\n{BOLD}{GREEN}✔ Dataset prepared successfully!{RESET} ({yaml_file.relative_to(PROJECT_ROOT)})")
+    except Exception as e:
+        print(f"\n{BOLD}{RED}✖ Preparation failed: {e}{RESET}")
+    safe_wait_enter(f"\n{DIM}Press [Enter] to return to menu...{RESET}")
+
+
+def screen_package_results():
+    """Step 5: Export NCNN/ONNX, evaluate, and package deliverables into .zip."""
+    print("\n" + "=" * 74)
+    print(f"{BOLD}{CYAN}  📦 STEP 5: EXPORT, EVALUATE & PACKAGE RESULTS (.zip){RESET}")
+    print("=" * 74)
+    if os.name == "nt":
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(PROJECT_ROOT / "scripts" / "5_package_results.ps1")]
+    else:
+        cmd = ["bash", str(PROJECT_ROOT / "scripts" / "5_package_results.sh")]
+    try:
+        subprocess.run(cmd, cwd=PROJECT_ROOT, check=True)
+    except Exception as e:
+        print(f"\n{BOLD}{RED}✖ Packaging failed: {e}{RESET}")
+    safe_wait_enter(f"\n{DIM}Press [Enter] to return to menu...{RESET}")
+
 
 def run_tournament_workflow(preset: TournamentPreset, mock: bool = False):
     """Launches the sequential tournament with live telemetry and sleep prevention."""
     cfg = get_preset_config(preset)
+
+    # Pre-flight check: ensure dataset exists before running real tournament
+    data_yaml = PROJECT_ROOT / cfg.data_yaml
+    if not mock and not data_yaml.exists():
+        print(f"\n{BOLD}{RED}✖ Dataset not found at {data_yaml.relative_to(PROJECT_ROOT)}{RESET}")
+        print("  Please download and prepare the dataset first using menu options:")
+        print("    • '📥 Download VisDrone Dataset (~2.5 GB)'")
+        print("    • '📁 Prepare YOLO Dataset'\n")
+        safe_wait_enter("Press [Enter] to return...")
+        return
 
     print("\n" + "=" * 74)
     print(f"{BOLD}{CYAN}  🚀 LAUNCHING DRONE MODEL TOURNAMENT ({preset.value.upper()}){RESET}")
@@ -532,7 +621,7 @@ def tournament_main():
     options = [
         {
             "label": "🚀 Launch Standard Overnight Tournament",
-            "desc": "6.5 hours, 8 candidates, 3 phases, adaptive GPU budgeting",
+            "desc": "Step 4.5: 6.5 hours, 8 candidates, 3 phases, adaptive GPU budgeting",
             "val": "overnight_standard",
         },
         {
@@ -544,6 +633,21 @@ def tournament_main():
             "label": "⏱️ Fast Screening Tournament",
             "desc": "2.5 hours, 6 candidates, fast successive-halving filter",
             "val": "fast_screening",
+        },
+        {
+            "label": "📥 Download VisDrone Dataset (~2.5 GB)",
+            "desc": "Step 2: Downloads raw train + val zip splits from GitHub releases",
+            "val": "download_dataset",
+        },
+        {
+            "label": "📁 Prepare YOLO Dataset",
+            "desc": "Step 3: Converts VisDrone annotations into YOLO format (data.yaml)",
+            "val": "prepare_dataset",
+        },
+        {
+            "label": "📦 Package Final Deliverables (.zip)",
+            "desc": "Step 5: Exports NCNN/ONNX, evaluates mAP, and zips training-results.zip",
+            "val": "package_results",
         },
         {
             "label": "📊 View Tournament Leaderboard & Finalists",
@@ -571,6 +675,12 @@ def tournament_main():
             run_tournament_workflow(TournamentPreset.SMOKE_TEST, mock=False)
         elif choice == "fast_screening":
             run_tournament_workflow(TournamentPreset.FAST_SCREENING, mock=False)
+        elif choice == "download_dataset":
+            screen_download_dataset()
+        elif choice == "prepare_dataset":
+            screen_prepare_dataset()
+        elif choice == "package_results":
+            screen_package_results()
         elif choice == "view_leaderboard":
             screen_view_leaderboard(output_dir)
         elif choice == "hard_dataset":
