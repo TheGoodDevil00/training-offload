@@ -289,6 +289,12 @@ def get_pipeline_state(force: bool = False):
         return _PIPELINE_CACHE
 
     state = {}
+    raw_train = PROJECT_ROOT / "datasets" / "usable" / "VisDrone2019-DET-train"
+    raw_val = PROJECT_ROOT / "datasets" / "usable" / "VisDrone2019-DET-val"
+    raw_ok = (raw_train / "images").exists() and (raw_val / "images").exists()
+    state["raw_ok"] = raw_ok
+    state["raw_desc"] = "Downloaded (~2.5 GB)" if raw_ok else "Not downloaded (Step 2)"
+
     data_yaml = DATASET_DIR / "data.yaml"
     train_dir = DATASET_DIR / "train" / "images"
     val_dir = DATASET_DIR / "val" / "images"
@@ -305,8 +311,7 @@ def get_pipeline_state(force: bool = False):
             state["dataset_desc"] = f"Ready ({DATASET_DIR.relative_to(PROJECT_ROOT)})"
     else:
         state["dataset_ok"] = False
-        state["dataset_desc"] = "Not prepared (run Step 1)"
-
+        state["dataset_desc"] = "Not prepared (Step 3)"
     # 2. Model Checkpoint Status
     runs_dir = PROJECT_ROOT / "runs" / "detect"
     checkpoints = []
@@ -384,6 +389,11 @@ def get_pipeline_state(force: bool = False):
     webcams = list(Path("/dev").glob("video*"))
     state["videos"] = [str(v.relative_to(PROJECT_ROOT)) for v in videos]
     state["webcams"] = [str(w) for w in webcams]
+
+    # 5. Packaged Deliverables
+    result_zips = sorted(PROJECT_ROOT.glob("training-results-*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
+    state["package_ok"] = bool(result_zips)
+    state["package_desc"] = result_zips[0].name if result_zips else "Not packaged yet"
 
     _PIPELINE_CACHE = state
     _PIPELINE_TIME = now
@@ -825,29 +835,39 @@ def render_banner_lines() -> list:
     # 4. Pipeline Lifecycle Stepper
     lines.append("")
     lines.append(f"  {BOLD}Pipeline Lifecycle Status:{RESET}")
+    # Step 0: Download
+    raw_ico = f"{GREEN}✔{RESET}" if state.get("raw_ok") else f"{YELLOW}•{RESET}"
+    raw_txt = f"{GREEN}{state.get('raw_desc')}{RESET}" if state.get("raw_ok") else f"{YELLOW}{state.get('raw_desc')}{RESET}"
+    lines.append(f"    {raw_ico} {BOLD}[0. Download Data]{RESET} {raw_txt}")
+
     # Step 1: Prep
     prep_ico = f"{GREEN}✔{RESET}" if state["dataset_ok"] else f"{YELLOW}•{RESET}"
     prep_txt = f"{GREEN}{state['dataset_desc']}{RESET}" if state["dataset_ok"] else f"{YELLOW}{state['dataset_desc']}{RESET}"
-    lines.append(f"    {prep_ico} {BOLD}[1. Prep Dataset]{RESET} {prep_txt}")
+    lines.append(f"    {prep_ico} {BOLD}[1. Prep Dataset ]{RESET} {prep_txt}")
 
     # Step 2: Model
     model_ico = f"{GREEN}✔{RESET}" if state["model_ok"] else f"{YELLOW}•{RESET}"
     model_txt = f"{GREEN}{state['model_desc']}{RESET}" if state["model_ok"] else f"{YELLOW}{state['model_desc']}{RESET}"
-    lines.append(f"    {model_ico} {BOLD}[2. Train Model ]{RESET} {model_txt}")
+    lines.append(f"    {model_ico} {BOLD}[2. Train Model  ]{RESET} {model_txt}")
+
     # Step T: Tournament
     tourn_ico = f"{GREEN}✔{RESET}" if state.get("tournament_ok") else f"{DIM}•{RESET}"
     tourn_txt = f"{GREEN}{state.get('tournament_desc', 'Ready')}{RESET}" if state.get("tournament_ok") else f"{DIM}{state.get('tournament_desc', 'Ready')}{RESET}"
-    lines.append(f"    {tourn_ico} {BOLD}[T. Tournament  ]{RESET} {tourn_txt}")
+    lines.append(f"    {tourn_ico} {BOLD}[T. Tournament   ]{RESET} {tourn_txt}")
 
     # Step 3: Export
     exp_ico = f"{GREEN}✔{RESET}" if state["exports"] else f"{DIM}•{RESET}"
     exp_txt = f"{GREEN}{state['export_desc']}{RESET}" if state["exports"] else f"{DIM}Pending export{RESET}"
-    lines.append(f"    {exp_ico} {BOLD}[3. Edge Export ]{RESET} {exp_txt}")
+    lines.append(f"    {exp_ico} {BOLD}[3. Edge Export  ]{RESET} {exp_txt}")
 
-    # Step 4 & 5: Inference / Eval
+    # Step P: Package
+    pkg_ico = f"{GREEN}✔{RESET}" if state.get("package_ok") else f"{DIM}•{RESET}"
+    pkg_txt = f"{GREEN}{state.get('package_desc')}{RESET}" if state.get("package_ok") else f"{DIM}{state.get('package_desc')}{RESET}"
+    lines.append(f"    {pkg_ico} {BOLD}[P. Package Zip  ]{RESET} {pkg_txt}")
+
+    # Step 4: Inference
     infer_ready = f"{GREEN}Ready ({len(state['videos'])} video(s), {len(state['webcams'])} camera(s)){RESET}"
-    lines.append(f"    {GREEN}✔{RESET} {BOLD}[4. Inference   ]{RESET} {infer_ready}")
-
+    lines.append(f"    {GREEN}✔{RESET} {BOLD}[4. Inference    ]{RESET} {infer_ready}")
     lines.append(f"{DARK_GRAY}{'─' * 74}{RESET}")
     return lines
 
@@ -902,16 +922,54 @@ def run_command(cmd_list: list, task_name: str = "Pipeline Task"):
 # Menu Handlers
 # --------------------------------------------------------------------------- #
 
+def menu_download_dataset():
+    """Step 2: Download the VisDrone2019-DET raw dataset (~2.5 GB)."""
+    data_dir = PROJECT_ROOT / "datasets" / "usable"
+    train_dir = data_dir / "VisDrone2019-DET-train"
+    val_dir = data_dir / "VisDrone2019-DET-val"
+    if (train_dir / "images").exists() and (val_dir / "images").exists():
+        print(f"\n{BOLD}{GREEN}✔ VisDrone dataset is already downloaded and extracted at {data_dir.relative_to(PROJECT_ROOT)}.{RESET}")
+        input(f"\n{DIM}Press [Enter] to return to menu...{RESET}")
+        return
+
+    if os.name == "nt":
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(PROJECT_ROOT / "scripts" / "2_download_data.ps1")]
+    else:
+        cmd = ["bash", str(PROJECT_ROOT / "scripts" / "2_download_data.sh")]
+    run_command(cmd, "Download VisDrone Dataset (~2.5 GB)")
+
+
+def menu_package_results():
+    """Step 5: Export NCNN/ONNX, evaluate, and package deliverables into .zip."""
+    if os.name == "nt":
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(PROJECT_ROOT / "scripts" / "5_package_results.ps1")]
+    else:
+        cmd = ["bash", str(PROJECT_ROOT / "scripts" / "5_package_results.sh")]
+    run_command(cmd, "Package Deliverables (.zip)")
+
+
 def menu_prepare_dataset():
-    """Step 1: Dataset conversion and options."""
+    """Step 3: Dataset conversion and options (VisDrone -> single-class human)."""
+    raw_train = PROJECT_ROOT / "datasets" / "usable" / "VisDrone2019-DET-train"
+    raw_val = PROJECT_ROOT / "datasets" / "usable" / "VisDrone2019-DET-val"
+    if not (raw_train / "images").exists() or not (raw_val / "images").exists():
+        print(f"\n{BOLD}{RED}✖ Raw VisDrone folders not found under datasets/usable/.{RESET}")
+        print("  Please download the dataset first (Step 2).")
+        if input("  Download VisDrone dataset now? (Y/n): ").strip().lower() != "n":
+            menu_download_dataset()
+            if not (raw_train / "images").exists():
+                return
+        else:
+            return
+
     options = [
-        {"label": "Standard Symlink (Recommended)", "desc": "Keep all frames (incl. negatives), symlink images to save disk", "val": "default"},
+        {"label": "Copy Images (Recommended for Windows)", "desc": "Physically copy images to avoid symlink permission errors (--copy)", "val": "copy"},
+        {"label": "Standard Symlink", "desc": "Keep all frames (incl. negatives), symlink images to save disk", "val": "default"},
         {"label": "Only Frames with Humans", "desc": "Filter out non-human negative frames (--only-with-humans)", "val": "humans_only"},
-        {"label": "Copy Images (Standalone)", "desc": "Physically copy images instead of symlinking (--copy)", "val": "copy"},
         {"label": "Custom Split Paths", "desc": "Specify custom train/val/out directories", "val": "custom"},
     ]
 
-    choice = prompt_select_menu("Step 1: Prepare VisDrone Dataset", options)
+    choice = prompt_select_menu("Step 3: Prepare VisDrone Dataset", options)
     if not choice:
         return
 
@@ -1368,25 +1426,31 @@ def menu_dataset_health():
 
 def main():
     options = [
-        {"label": "📁 Prepare Dataset", "desc": "VisDrone raw -> YOLO single-class format", "val": "1"},
-        {"label": "🏋️ Train Model", "desc": "YOLO26n / YOLO11n fine-tuning, resume, smoke test", "val": "2"},
-        {"label": "📦 Export & Quantize", "desc": "Convert to NCNN / ONNX (fp16 / int8) for RPi 5", "val": "3"},
+        {"label": "📥 Download Dataset", "desc": "Step 2: VisDrone2019-DET raw dataset (~2.5 GB)", "val": "0"},
+        {"label": "📁 Prepare Dataset", "desc": "Step 3: VisDrone raw -> YOLO single-class format", "val": "1"},
+        {"label": "🏋️ Train Model", "desc": "Step 4: YOLO26n / YOLO11n fine-tuning, resume, smoke test", "val": "2"},
+        {"label": "🏆 Model Tournament", "desc": "Step 4.5: Overnight sequential model tournament (RTX 4050)", "val": "T"},
+        {"label": "📦 Export & Quantize", "desc": "Step 5: Convert to NCNN / ONNX (fp16 / int8) for RPi 5", "val": "3"},
+        {"label": "🎁 Package Deliverables", "desc": "Step 5.5: Benchmark, export, and create training-results.zip", "val": "P"},
         {"label": "📊 Hardware Benchmark", "desc": "Simulate RPi 5 4-thread CPU throughput & accuracy", "val": "4"},
         {"label": "🎥 Video / Live Inference", "desc": "Real-time bounding box detection & FPS monitoring", "val": "5"},
         {"label": "📈 Inspect Training Metrics", "desc": "View mAP curves, loss progression & best epochs", "val": "6"},
         {"label": "🩺 Dataset Health Check", "desc": "Verify split image/label pairing and annotations", "val": "7"},
-        {"label": "🏆 Model Tournament", "desc": "Overnight sequential model tournament (RTX 4050)", "val": "T"},
     ]
 
     while True:
         choice = prompt_select_menu("Main Menu — Select Rescue Swarm Workflow", options)
 
-        if choice == "1":
+        if choice == "0":
+            menu_download_dataset()
+        elif choice == "1":
             menu_prepare_dataset()
         elif choice == "2":
             menu_train()
         elif choice == "3":
             menu_export()
+        elif choice == "P":
+            menu_package_results()
         elif choice == "4":
             menu_evaluate()
         elif choice == "5":
