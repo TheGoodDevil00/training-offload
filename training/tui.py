@@ -21,8 +21,10 @@ import time
 import select
 from pathlib import Path
 
-# Add project root to path
+# Add project root to sys.path and set working directory
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 os.chdir(PROJECT_ROOT)
 
 from training.tournament.platform_utils import (
@@ -948,8 +950,61 @@ def menu_package_results():
     run_command(cmd, "Package Deliverables (.zip)")
 
 
+def check_dependencies(py_exe: str = None) -> tuple:
+    """Checks if essential packages (PIL, cv2, yaml, torch, ultralytics) are importable."""
+    exe = py_exe or get_python_exe()
+    check_code = (
+        "import sys\n"
+        "missing = []\n"
+        "for mod, name in [('PIL', 'Pillow'), ('cv2', 'opencv-python'), ('yaml', 'PyYAML'), ('torch', 'PyTorch'), ('ultralytics', 'Ultralytics')]:\n"
+        "    try:\n"
+        "        __import__(mod)\n"
+        "    except ImportError:\n"
+        "        missing.append(name)\n"
+        "if missing:\n"
+        "    print(','.join(missing))\n"
+        "    sys.exit(1)\n"
+    )
+    try:
+        res = subprocess.run([exe, "-c", check_code], capture_output=True, text=True)
+        if res.returncode != 0:
+            return False, res.stdout.strip() or "Core dependencies missing"
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+
+def menu_install_dependencies():
+    """Step 1 / Repair: Installs project requirements.txt into the active venv."""
+    req_file = PROJECT_ROOT / "requirements.txt"
+    if not req_file.exists():
+        print(f"\n{BOLD}{RED}✖ requirements.txt not found at {req_file}{RESET}")
+        input(f"\n{DIM}Press [Enter] to return...{RESET}")
+        return
+    py = get_python_exe()
+    cmd = [py, "-m", "pip", "install", "-r", str(req_file)]
+    run_command(cmd, "Install / Repair Dependencies")
+
+
+def ensure_dependencies() -> bool:
+    """Verifies dependencies, prompting to install them if missing."""
+    ok, missing = check_dependencies()
+    if not ok:
+        print(f"\n{BOLD}{YELLOW}⚠ Missing Python dependencies in environment: {missing}{RESET}")
+        print("  These packages are required to run this step.")
+        ans = input(f"  Install missing requirements now? (Y/n): ").strip().lower()
+        if ans != "n":
+            menu_install_dependencies()
+            ok_after, _ = check_dependencies()
+            return ok_after
+        return False
+    return True
+
+
 def menu_prepare_dataset():
     """Step 3: Dataset conversion and options (VisDrone -> single-class human)."""
+    if not ensure_dependencies():
+        return
     raw_train = PROJECT_ROOT / "datasets" / "usable" / "VisDrone2019-DET-train"
     raw_val = PROJECT_ROOT / "datasets" / "usable" / "VisDrone2019-DET-val"
     if not (raw_train / "images").exists() or not (raw_val / "images").exists():
@@ -994,6 +1049,8 @@ def menu_prepare_dataset():
 
 def menu_train():
     """Step 2: Model training workflows (supports YOLO26n and YOLO11n)."""
+    if not ensure_dependencies():
+        return
     arch_options = [
         {
             "label": "🚀 YOLO26n (Recommended — End-to-End, 5.3 GFLOPs)",
@@ -1436,6 +1493,7 @@ def main():
         {"label": "🎥 Video / Live Inference", "desc": "Real-time bounding box detection & FPS monitoring", "val": "5"},
         {"label": "📈 Inspect Training Metrics", "desc": "View mAP curves, loss progression & best epochs", "val": "6"},
         {"label": "🩺 Dataset Health Check", "desc": "Verify split image/label pairing and annotations", "val": "7"},
+        {"label": "🛠️ Install / Repair Env", "desc": "Step 1: Install or repair venv requirements.txt", "val": "I"},
     ]
 
     while True:
@@ -1459,6 +1517,8 @@ def main():
             menu_inspect_metrics()
         elif choice == "7":
             menu_dataset_health()
+        elif choice == "I":
+            menu_install_dependencies()
         elif choice == "T":
             run_command([get_python_exe(), "training/tournament_runner.py", "--tui"], "Overnight Model Tournament")
         elif choice is None:

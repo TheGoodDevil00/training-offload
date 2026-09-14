@@ -38,10 +38,26 @@ import argparse
 import json
 import os
 import statistics
+import sys
 import time
 from pathlib import Path
 
-import cv2
+# Add project root to sys.path and set working directory
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+os.chdir(PROJECT_ROOT)
+
+try:
+    import cv2
+except ImportError as e:
+    print("\n" + "=" * 64)
+    print(f"  [ERROR] OpenCV (cv2) is not installed ({e}).")
+    print("  To fix, run:")
+    print("      python -m pip install -r requirements.txt")
+    print("  or run Step 1 (1-Install.bat) to set up the environment.")
+    print("=" * 64 + "\n")
+    sys.exit(1)
 
 
 # --------------------------------------------------------------------------- #

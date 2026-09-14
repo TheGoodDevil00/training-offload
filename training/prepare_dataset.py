@@ -30,10 +30,27 @@ Usage:
 """
 
 import argparse
+import os
 import shutil
+import sys
 from pathlib import Path
 
-from PIL import Image
+# Add project root to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from PIL import Image
+except ImportError:
+    print("\n" + "=" * 64)
+    print("  [ERROR] The 'Pillow' (PIL) image processing library is missing.")
+    print("  This environment needs its dependencies installed.")
+    print("  To fix, run:")
+    print("      python -m pip install -r requirements.txt")
+    print("  or run Step 1 (1-Install.bat) to set up the environment.")
+    print("=" * 64 + "\n")
+    sys.exit(1)
 
 # VisDrone category ids that we keep and map onto a single "human" class.
 HUMAN_CATEGORIES = {1: 0, 2: 0}  # pedestrian, people -> class 0 (human)
@@ -156,6 +173,13 @@ def main():
     train_src = (root / args.train) if not Path(args.train).is_absolute() else Path(args.train)
     val_src = (root / args.val) if not Path(args.val).is_absolute() else Path(args.val)
     out = (root / args.out) if not Path(args.out).is_absolute() else Path(args.out)
+
+    if not (train_src / "annotations").exists() or not (val_src / "annotations").exists():
+        print(f"\n[ERROR] Raw VisDrone folders not found:")
+        print(f"  Train: {train_src}")
+        print(f"  Val:   {val_src}")
+        print("Please run Step 2 (2-Download-Dataset.bat or scripts/2_download_data.ps1) first.\n")
+        sys.exit(1)
 
     n_train = convert_split(train_src, out / "train", args.copy, args.only_with_humans)
     n_val = convert_split(val_src, out / "val", args.copy, args.only_with_humans)

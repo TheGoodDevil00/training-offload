@@ -36,14 +36,30 @@ The model weights are saved to:
 """
 
 import argparse
-
-import torch
+import os
 import shutil
+import sys
 from pathlib import Path
 
-from ultralytics import YOLO
+# Add project root to sys.path and set working directory
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+os.chdir(PROJECT_ROOT)
 
-DATASET_YAML = "datasets/usable/yolo-human/data.yaml"
+try:
+    import torch
+    from ultralytics import YOLO
+except ImportError as e:
+    print("\n" + "=" * 64)
+    print(f"  [ERROR] Required Python packages are missing ({e}).")
+    print("  To fix, run:")
+    print("      python -m pip install -r requirements.txt")
+    print("  or run Step 1 (1-Install.bat) to set up the environment.")
+    print("=" * 64 + "\n")
+    sys.exit(1)
+
+DATASET_YAML = str(PROJECT_ROOT / "datasets" / "usable" / "yolo-human" / "data.yaml")
 
 
 def parse_args():
