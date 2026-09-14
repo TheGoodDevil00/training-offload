@@ -132,16 +132,53 @@ This suite includes dedicated evaluation tooling (`training/eval/evaluate.py`) t
 
 ---
 
-## 🛠️ Troubleshooting
+## 🛠️ Troubleshooting & Common Pitfalls
 
-| Problem | Symptom / Error | Solution |
+| Problem | Symptom / Error | Immediate Solution |
 |---|---|---|
-| **Windows SmartScreen** | Blue "Windows protected your PC" popup | Click **More info** ➔ **Run anyway** |
-| **Driver Outdated** | `driver ... is too old ... needs 580+` | Download & install the latest NVIDIA driver from [nvidia.com/drivers](https://www.nvidia.com/drivers), reboot, and re-run Step 1. |
-| **No CUDA Acceleration** | `PyTorch CANNOT use your GPU` | Ensure NVIDIA driver is installed and reboot. `1_setup.ps1` / `1_setup.sh` installs CUDA-enabled PyTorch automatically. |
-| **Path / OneDrive Issues** | Script fails finding files or access denied | Keep project folder on a local drive path (e.g. `C:\Dev\training-offload` or `~/training-offload`), avoiding OneDrive-synced folders. |
-| **Low Free Disk Space** | Extraction or install crashes with no space | Free up ~20 GB on drive, delete `.venv` if corrupt, and restart from Step 1. |
-| **Antivirus Lock** | Slow installation or locked files | Temporarily pause active antivirus scanning during Step 1 library installation. |
+| **Nested Folder from ZIP** | `No module named 'training'` or `The system cannot find the path specified` | GitHub extraction creates `training-offload-main/training-offload-main/`. Make sure your terminal or Explorer is open in the **inner folder** containing `TUI.bat` and `training/`. |
+| **Missing Dependencies** | `ModuleNotFoundError: No module named 'PIL'` (or `torch`, `ultralytics`, `cv2`) | Step 1 was skipped or incomplete. Run `windows\1-Install.bat` (or `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`). In the TUI, select **Option I (Install / Repair Env)**. |
+| **Batch File Missing Path** | `The system cannot find the path specified` | The `.venv` environment has not been created yet. Double-click `windows/1-Install.bat` first (or launch `TUI.bat` which auto-initiates setup). |
+| **Subdirectory Execution** | `ModuleNotFoundError: No module named 'training'` when in `training/` | Always execute commands from the **project root** (`python training/tui.py` or `python -m training.tui`), or use `TUI.bat`. |
+| **Outdated NVIDIA Driver** | `driver ... is too old ... needs 580+` | Download & install the newest driver from [nvidia.com/drivers](https://www.nvidia.com/drivers). **Reboot the PC once** after installation, then re-run `1-Install.bat`. |
+| **PyTorch Cannot See GPU** | `PyTorch CANNOT use your GPU` / `CUDA_FAIL` | 1. Check if NVIDIA GPU appears in Task Manager. 2. Update NVIDIA driver. 3. Reboot machine and re-run Step 1. |
+| **PowerShell Script Policy** | `running scripts is disabled on this system` | Double-click the `.bat` launchers in `windows/` (which automatically bypass execution policy), or run `powershell -ExecutionPolicy Bypass -File .\scripts\1_setup.ps1`. |
+| **PC Goes to Sleep Mid-Run** | Training stops or crashes after 15-30 minutes | Prevent sleep when plugged in: *Windows Settings ➔ System ➔ Power ➔ Screen & sleep ➔ When plugged in: **Never***. |
+| **Windows SmartScreen** | Blue "Windows protected your PC" popup | Click **More info** ➔ **Run anyway**. |
+| **Path / OneDrive Issues** | Script fails finding files or access denied | Keep project folder on a local drive path (e.g. `C:\Dev\training-offload` or `D:\training-offload`), avoiding OneDrive-synced folders. |
+| **Low Disk Space** | Extraction or pip install crashes | Free up ~20 GB on drive, delete broken `.venv` if corrupt, and restart from Step 1. |
+
+---
+
+### Detailed Resolution Steps for Common Scenarios
+
+#### 1. "No module named 'training'" or nested folder confusion
+When downloading a ZIP from GitHub, extracting often creates a nested folder structure:
+```
+📁 training-offload-main/                <-- Outer unzipped folder
+    └── 📁 training-offload-main/        <-- INNER PROJECT ROOT (Contains TUI.bat, training/, scripts/)
+```
+Make sure you `cd` into the **inner folder** where `TUI.bat` and the `training` directory reside:
+```powershell
+cd "C:\Path\To\training-offload-main\training-offload-main"
+.\TUI.bat
+```
+
+#### 2. Missing Python libraries (`ModuleNotFoundError: No module named 'PIL' / 'torch'`)
+If someone manually created a `.venv` or skipped Step 1, libraries like Pillow or PyTorch won't exist in `.venv`.
+To fix, run:
+```powershell
+# From the project root:
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+Or simply double-click `windows/1-Install.bat` to run the full environment validation.
+
+#### 3. NVIDIA Driver & CUDA Setup
+PyTorch with CUDA acceleration requires an NVIDIA driver version **580 or newer**.
+- Download from: [https://www.nvidia.com/drivers](https://www.nvidia.com/drivers)
+- Select your GPU (e.g., GeForce RTX 40-Series Notebook).
+- Perform a Clean Installation, then **restart your computer**.
+- Run `windows/1-Install.bat` to verify `[OK] CUDA_OK <Your GPU Name>`.
 
 ---
 
