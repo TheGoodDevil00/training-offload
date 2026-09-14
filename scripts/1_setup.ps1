@@ -75,16 +75,38 @@ Run $venvPy @('-m', 'pip', 'install', '--upgrade', 'pip')
 Run $venvPy @('-m', 'pip', 'install', '-r', (Join-Path $RepoRoot 'requirements.txt'))
 
 # ---------------------------------------------------------------- Sanity checks
-Write-Info "Verifying that PyTorch can actually see the GPU..."
+Write-Info "Verifying that PyTorch can see the GPU and core packages import..."
 $chk = @"
+import sys
+missing = []
+for mod, name in [('PIL', 'Pillow'), ('cv2', 'opencv-python'), ('yaml', 'PyYAML'), ('torch', 'PyTorch'), ('ultralytics', 'Ultralytics')]:
+    try:
+        __import__(mod)
+    except ImportError:
+        missing.append(name)
+if missing:
+    print('DEP_FAIL: ' + ', '.join(missing))
+    sys.exit(2)
+
 import torch
-assert torch.cuda.is_available(), 'torch.cuda.is_available() is False'
+if not torch.cuda.is_available():
+    print('CUDA_FAIL')
+    sys.exit(3)
+
 print('CUDA_OK ' + torch.cuda.get_device_name(0))
 props = torch.cuda.get_device_properties(0)
 print('VRAM_GB %.1f' % (props.total_memory / 2**30))
 "@
 $out = & $venvPy @('-c', $chk)
 if ($LASTEXITCODE -ne 0) {
+    if ($LASTEXITCODE -eq 2) {
+        Fail @"
+Required Python dependencies are missing:
+$($out -join "`n")
+Try running:
+  $venvPy -m pip install -r requirements.txt
+"@
+    }
     Fail @"
 PyTorch is installed but CANNOT use your GPU.
 Fixes that usually work:
